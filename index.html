@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Devoluções — Ecompack</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand: #1B3A6B;
+    --brand-light: #E6F1FB;
+    --brand-mid: #185FA5;
+    --danger: #A32D2D;
+    --danger-light: #FCEBEB;
+    --success: #0F6E56;
+    --success-light: #E1F5EE;
+    --warn: #854F0B;
+    --warn-light: #FAEEDA;
+    --gray: #5F5E5A;
+    --gray-light: #F1EFE8;
+    --border: #D3D1C7;
+    --bg: #F8F7F4;
+    --white: #ffffff;
+    --text: #2C2C2A;
+    --text-muted: #888780;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+  header { background: var(--brand); color: #fff; padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .logo { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: #5DCAA5; }
+  .header-sub { font-size: 12px; opacity: 0.6; }
+
+  nav { background: var(--white); border-bottom: 1px solid var(--border); display: flex; gap: 0; padding: 0 2rem; }
+  .nav-btn { padding: 14px 20px; font-size: 13px; font-weight: 500; border: none; background: none; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+  .nav-btn.active { color: var(--brand); border-bottom-color: var(--brand); }
+  .nav-btn:hover:not(.active) { color: var(--text); }
+  .nav-count { display: inline-block; background: var(--brand-light); color: var(--brand); font-size: 11px; padding: 1px 7px; border-radius: 20px; margin-left: 6px; font-weight: 600; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 2rem; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1.25rem; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-1 { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
+
+  label { font-size: 12px; font-weight: 500; color: var(--text-muted); display: block; margin-bottom: 5px; }
+  input, select, textarea { width: 100%; padding: 9px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--white); color: var(--text); font-family: inherit; transition: border-color 0.15s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .file-input-wrap { position: relative; }
+  .file-input-wrap input[type=file] { padding: 7px 12px; background: var(--bg); cursor: pointer; }
+
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--white); color: var(--text); transition: all 0.15s; }
+  .btn:hover { background: var(--bg); }
+  .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .btn-primary:hover { background: var(--brand-mid); border-color: var(--brand-mid); }
+  .btn-danger { background: var(--danger-light); color: var(--danger); border-color: #F7C1C1; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .attach-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .attach-chip { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--brand-light); color: var(--brand); font-weight: 500; }
+
+  /* TICKETS */
+  .filters { display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filters select, .filters input { flex: 1; min-width: 140px; }
+
+  .ticket { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+  .ticket-head { padding: 1rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .ticket-head:hover { background: var(--bg); }
+  .ticket-id { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+  .ticket-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .ticket-meta { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap; }
+  .ticket-meta span { display: flex; align-items: center; gap: 4px; }
+  .ticket-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .b-aguardando { background: var(--warn-light); color: var(--warn); }
+  .b-respondido { background: var(--success-light); color: var(--success); }
+  .b-encerrado { background: var(--gray-light); color: var(--gray); }
+  .b-urgente { background: var(--danger-light); color: var(--danger); }
+  .b-aberto { background: var(--brand-light); color: var(--brand); }
+
+  .ticket-body { display: none; border-top: 1px solid var(--border); padding: 1.25rem; background: var(--bg); }
+  .ticket-body.open { display: block; }
+
+  .detail-section { margin-bottom: 1rem; }
+  .detail-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .detail-text { font-size: 14px; line-height: 1.6; }
+
+  .resp-box { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; margin-top: 0.5rem; }
+  .resp-author { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+
+  .resp-form { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; margin-top: 0.5rem; }
+  .resp-form .grid-2 { margin-bottom: 10px; }
+  .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+
+  /* RELATORIO */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .metric-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 700; color: var(--brand); line-height: 1; }
+  .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .chart-row { margin-bottom: 10px; }
+  .chart-info { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .chart-track { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .chart-fill { height: 100%; border-radius: 4px; background: var(--brand); }
+
+  .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 12px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 999; }
+  .toast.show { opacity: 1; }
+
+  .loading { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px; }
+
+  @media (max-width: 600px) {
+    main { padding: 1rem; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    nav { overflow-x: auto; padding: 0 1rem; }
+    .nav-btn { padding: 12px 14px; white-space: nowrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div> Ecompack — Controle de Devoluções</div>
+  <span class="header-sub">Sistema interno de qualidade</span>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="goTab('novo', this)">+ Abrir ticket</button>
+  <button class="nav-btn" onclick="goTab('tickets', this)">Tickets <span class="nav-count" id="nav-count">0</span></button>
+  <button class="nav-btn" onclick="goTab('relatorio', this)">Relatório</button>
+</nav>
+
+<main>
+
+  <!-- NOVO TICKET -->
+  <div id="panel-novo" class="panel active">
+    <div class="card">
+      <div class="card-title">Novo registro de devolução com defeito</div>
+
+      <div class="grid-2">
+        <div><label>Aberto por</label>
+          <select id="n-abertura"><option>Soraia</option><option>Márcia</option></select>
+        </div>
+        <div><label>Data</label><input type="date" id="n-data"></div>
+      </div>
+
+      <div class="grid-3">
+        <div><label>Cliente / Fornecedor</label><input type="text" id="n-cliente" placeholder="Nome do cliente"></div>
+        <div><label>Lote</label><input type="text" id="n-lote" placeholder="Ex: L2024-001"></div>
+        <div><label>Quantidade (un.)</label><input type="number" id="n-qtd" placeholder="0" min="0"></div>
+      </div>
+
+      <div class="grid-3">
+        <div><label>Medida / Produto</label><input type="text" id="n-medida" placeholder="Ex: 20x30cm"></div>
+        <div><label>Valor da troca (R$)</label><input type="number" id="n-troca" placeholder="0,00" step="0.01" min="0"></div>
+        <div><label>Prioridade</label>
+          <select id="n-prioridade"><option>Normal</option><option>Urgente</option></select>
+        </div>
+      </div>
+
+      <div class="grid-1">
+        <div><label>Descrição do defeito</label>
+          <textarea id="n-descricao" placeholder="Descreva detalhadamente o defeito encontrado..."></textarea>
+        </div>
+      </div>
+
+      <div class="grid-1">
+        <div>
+          <label>Anexar fotos / vídeos (nomes dos arquivos)</label>
+          <input type="text" id="n-arquivos" placeholder="Ex: foto1.jpg, video2.mp4 (liste os nomes separados por vírgula)">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Os arquivos ficam registrados no sistema. Para envio físico, use o WhatsApp da equipe.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-primary" onclick="abrirTicket()">✓ Registrar devolução</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TICKETS -->
+  <div id="panel-tickets" class="panel">
+    <div class="filters">
+      <select id="f-status" onchange="carregarTickets()">
+        <option value="">Todos os status</option>
+        <option value="Aguardando gerente">Aguardando gerente</option>
+        <option value="Respondido">Respondido</option>
+        <option value="Encerrado">Encerrado</option>
+      </select>
+      <input type="text" id="f-busca" placeholder="Buscar por cliente, lote ou ticket..." oninput="filtrarLista()">
+    </div>
+    <div id="lista-tickets"><div class="loading">Carregando tickets...</div></div>
+  </div>
+
+  <!-- RELATORIO -->
+  <div id="panel-relatorio" class="panel">
+    <div class="metrics" id="metrics"></div>
+    <div class="card">
+      <div class="card-title">Prejuízo por cliente / fornecedor</div>
+      <div id="chart-cliente"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Devoluções por mês</div>
+      <div id="chart-mes"></div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://zbfjpyocdhndzlrboxb.supabase.co';
+const SUPA_KEY = 'sb_publishable_4plvC0EfMPMpfamA_Qrzvg_ddUciHhC';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+let todosTickets = [];
+
+document.getElementById('n-data').value = new Date().toISOString().slice(0,10);
+
+function toast(msg, tipo) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = tipo === 'erro' ? '#A32D2D' : '#1B3A6B';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function goTab(tab, btn) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'tickets') carregarTickets();
+  if (tab === 'relatorio') renderRelatorio();
+}
+
+async function gerarTicketId() {
+  const { count } = await db.from('devolucoes').select('*', { count: 'exact', head: true });
+  return 'DEV-' + String((count || 0) + 1).padStart(3, '0');
+}
+
+async function abrirTicket() {
+  const cliente = document.getElementById('n-cliente').value.trim();
+  const lote = document.getElementById('n-lote').value.trim();
+  const qtd = parseInt(document.getElementById('n-qtd').value) || 0;
+  const descricao = document.getElementById('n-descricao').value.trim();
+  const custo = parseFloat(document.getElementById('n-troca').value) || 0;
+
+  if (!cliente || !lote || !qtd || !descricao) {
+    toast('Preencha cliente, lote, quantidade e descrição.', 'erro');
+    return;
+  }
+
+  const btn = document.querySelector('#panel-novo .btn-primary');
+  btn.textContent = 'Salvando...';
+  btn.disabled = true;
+
+  const ticket_id = await gerarTicketId();
+  const arquivosRaw = document.getElementById('n-arquivos').value;
+  const arquivos = arquivosRaw ? arquivosRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const { error } = await db.from('devolucoes').insert({
+    ticket_id,
+    aberto_por: document.getElementById('n-abertura').value,
+    data_abertura: document.getElementById('n-data').value,
+    cliente,
+    lote,
+    quantidade: qtd,
+    medida: document.getElementById('n-medida').value.trim(),
+    valor_troca: custo,
+    prejuizo: qtd * custo,
+    descricao,
+    prioridade: document.getElementById('n-prioridade').value,
+    arquivos,
+    status: 'Aguardando gerente'
+  });
+
+  btn.textContent = '✓ Registrar devolução';
+  btn.disabled = false;
+
+  if (error) { toast('Erro ao salvar: ' + error.message, 'erro'); return; }
+
+  document.getElementById('n-cliente').value = '';
+  document.getElementById('n-lote').value = '';
+  document.getElementById('n-qtd').value = '';
+  document.getElementById('n-medida').value = '';
+  document.getElementById('n-troca').value = '';
+  document.getElementById('n-descricao').value = '';
+  document.getElementById('n-arquivos').value = '';
+  document.getElementById('n-data').value = new Date().toISOString().slice(0,10);
+
+  document.getElementById('nav-count').textContent = parseInt(document.getElementById('nav-count').textContent || 0) + 1;
+  toast(ticket_id + ' registrado com sucesso!');
+}
+
+async function carregarTickets() {
+  document.getElementById('lista-tickets').innerHTML = '<div class="loading">Carregando...</div>';
+  const filtroStatus = document.getElementById('f-status').value;
+  let query = db.from('devolucoes').select('*').order('created_at', { ascending: false });
+  if (filtroStatus) query = query.eq('status', filtroStatus);
+  const { data, error } = await query;
+  if (error) { document.getElementById('lista-tickets').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>Erro ao carregar tickets.</div>'; return; }
+  todosTickets = data || [];
+  document.getElementById('nav-count').textContent = todosTickets.length;
+  filtrarLista();
+}
+
+function filtrarLista() {
+  const busca = document.getElementById('f-busca').value.toLowerCase();
+  const filtrados = busca
+    ? todosTickets.filter(t => t.cliente.toLowerCase().includes(busca) || t.lote.toLowerCase().includes(busca) || t.ticket_id.toLowerCase().includes(busca))
+    : todosTickets;
+  renderLista(filtrados);
+}
+
+function renderLista(lista) {
+  const el = document.getElementById('lista-tickets');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>Nenhum ticket encontrado.</div>';
+    return;
+  }
+  el.innerHTML = lista.map(t => {
+    const prej = t.prejuizo > 0 ? 'R$ ' + Number(t.prejuizo).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '—';
+    const badgeClass = t.prioridade === 'Urgente' ? 'b-urgente' : t.status === 'Aguardando gerente' ? 'b-aguardando' : t.status === 'Respondido' ? 'b-respondido' : 'b-encerrado';
+    const badgeLabel = t.prioridade === 'Urgente' ? 'Urgente' : t.status;
+    const arqs = (t.arquivos || []).length ? (t.arquivos).map(a => `<span class="attach-chip">${a}</span>`).join('') : '<span style="font-size:12px;color:var(--text-muted)">Sem anexos</span>';
+
+    const respostaHtml = t.resposta_gerente
+      ? `<div class="detail-section">
+          <div class="detail-label">✅ Resposta do gerente de produção</div>
+          <div class="resp-box">
+            <div class="resp-author">${t.responsavel_producao || '—'} · ${t.data_resposta || ''}</div>
+            <div class="detail-text">${t.resposta_gerente}</div>
+          </div>
+          ${t.status !== 'Encerrado' ? `<div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-sm btn-danger" onclick="encerrar('${t.id}')">Encerrar ticket</button></div>` : ''}
+        </div>`
+      : `<div class="detail-section">
+          <div class="detail-label">Resposta do gerente de produção</div>
+          <div class="resp-form">
+            <div class="grid-2" style="margin-bottom:10px">
+              <div><label>Responsável pela produção</label><input type="text" id="rn-${t.id}" placeholder="Nome do operador / turno"></div>
+              <div><label>Data</label><input type="date" id="rd-${t.id}" value="${new Date().toISOString().slice(0,10)}"></div>
+            </div>
+            <textarea id="rt-${t.id}" placeholder="Informe quem produziu, a causa identificada e a ação corretiva tomada..."></textarea>
+            <div class="btn-row">
+              <button class="btn btn-sm btn-primary" onclick="responder('${t.id}')">Registrar resposta</button>
+              <button class="btn btn-sm btn-danger" onclick="encerrar('${t.id}')">Encerrar ticket</button>
+            </div>
+          </div>
+        </div>`;
+
+    return `<div class="ticket">
+      <div class="ticket-head" onclick="toggleTicket('tb-${t.id}')">
+        <div style="flex:1">
+          <div class="ticket-id">${t.ticket_id} · Aberto por ${t.aberto_por} em ${t.data_abertura}</div>
+          <div class="ticket-title">${t.cliente} — Lote ${t.lote}</div>
+          <div class="ticket-meta">
+            <span>📐 ${t.medida || '—'}</span>
+            <span>📦 ${t.quantidade} un.</span>
+            <span>💰 Prejuízo: ${prej}</span>
+          </div>
+        </div>
+        <div class="ticket-right">
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+          <span style="font-size:11px;color:var(--text-muted)">ver detalhes ▾</span>
+        </div>
+      </div>
+      <div class="ticket-body" id="tb-${t.id}">
+        <div class="detail-section">
+          <div class="detail-label">Descrição do defeito</div>
+          <div class="detail-text">${t.descricao}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Anexos registrados</div>
+          <div class="attach-list">${arqs}</div>
+        </div>
+        ${respostaHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTicket(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+async function responder(id) {
+  const nome = document.getElementById('rn-' + id).value.trim();
+  const texto = document.getElementById('rt-' + id).value.trim();
+  const data = document.getElementById('rd-' + id).value;
+  if (!nome || !texto) { toast('Informe o responsável e a resposta.', 'erro'); return; }
+
+  const { error } = await db.from('devolucoes').update({
+    responsavel_producao: nome,
+    resposta_gerente: texto,
+    data_resposta: data,
+    status: 'Respondido'
+  }).eq('id', id);
+
+  if (error) { toast('Erro ao salvar resposta.', 'erro'); return; }
+  toast('Resposta registrada com sucesso!');
+  carregarTickets();
+}
+
+async function encerrar(id) {
+  const { error } = await db.from('devolucoes').update({ status: 'Encerrado' }).eq('id', id);
+  if (error) { toast('Erro ao encerrar.', 'erro'); return; }
+  toast('Ticket encerrado.');
+  carregarTickets();
+}
+
+async function renderRelatorio() {
+  const { data } = await db.from('devolucoes').select('*');
+  const tickets = data || [];
+
+  const total = tickets.length;
+  const prej = tickets.reduce((s, t) => s + Number(t.prejuizo || 0), 0);
+  const pecas = tickets.reduce((s, t) => s + Number(t.quantidade || 0), 0);
+  const respondidos = tickets.filter(t => t.status === 'Respondido' || t.status === 'Encerrado').length;
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Total de tickets</div><div class="metric-value">${total}</div></div>
+    <div class="metric"><div class="metric-label">Prejuízo total</div><div class="metric-value" style="font-size:20px">R$ ${prej.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
+    <div class="metric"><div class="metric-label">Peças devolvidas</div><div class="metric-value">${pecas.toLocaleString('pt-BR')}</div></div>
+    <div class="metric"><div class="metric-label">Respondidos</div><div class="metric-value">${respondidos}<span style="font-size:14px;color:var(--text-muted);font-weight:400"> / ${total}</span></div></div>
+  `;
+
+  const porCliente = {};
+  tickets.forEach(t => { porCliente[t.cliente] = (porCliente[t.cliente]||0) + Number(t.prejuizo||0); });
+  const maxC = Math.max(...Object.values(porCliente), 1);
+  document.getElementById('chart-cliente').innerHTML = Object.keys(porCliente).length
+    ? Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+        `<div class="chart-row">
+          <div class="chart-info"><span>${k}</span><span style="font-weight:600">R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>
+          <div class="chart-track"><div class="chart-fill" style="width:${Math.round(v/maxC*100)}%"></div></div>
+        </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:13px">Sem dados ainda.</div>';
+
+  const porMes = {};
+  tickets.forEach(t => { const m = (t.data_abertura||'').slice(0,7); if(m) porMes[m] = (porMes[m]||0)+1; });
+  const maxM = Math.max(...Object.values(porMes), 1);
+  document.getElementById('chart-mes').innerHTML = Object.keys(porMes).length
+    ? Object.entries(porMes).sort().map(([k,v]) =>
+        `<div class="chart-row">
+          <div class="chart-info"><span>${k}</span><span style="font-weight:600">${v} ticket${v>1?'s':''}</span></div>
+          <div class="chart-track"><div class="chart-fill" style="width:${Math.round(v/maxM*100)}%"></div></div>
+        </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:13px">Sem dados ainda.</div>';
+}
+</script>
+</body>
+</html>
